@@ -134,7 +134,7 @@ def display_main_force_selector():
         "选择AI模型",
         list(app_model_options.keys()),
         format_func=lambda x: app_model_options[x],
-        help="deepseek-chat速度快，deepseek-reasoner推理能力强"
+        help="qwen3-max速度快，deepseek-reasoner推理能力强"
     )
 
     st.markdown("---")
@@ -613,7 +613,7 @@ def run_main_force_batch_analysis():
             'sentiment': False,  # 禁用以提升速度
             'news': False  # 禁用以提升速度
         }
-        selected_model = 'deepseek-chat'
+        selected_model = 'qwen3-max'
         period = '1y'
 
         # 创建进度显示
