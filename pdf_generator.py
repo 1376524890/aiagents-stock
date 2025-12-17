@@ -677,7 +677,7 @@ def generate_markdown_report(stock_info, agents_results, discussion_result, fina
         decision_text = final_decision.get('decision_text', str(final_decision))
         markdown_content += decision_text
 
-    markdown_content += """
+    markdown_content += f"""
 
 ---
 
