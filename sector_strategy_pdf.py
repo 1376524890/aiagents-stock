@@ -2,17 +2,11 @@
 智策报告PDF导出模块
 """
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from datetime import datetime
 import os
 import tempfile
+from markdown_it import MarkdownIt
+from weasyprint import HTML, CSS
 
 
 class SectorStrategyPDFGenerator:
@@ -20,35 +14,301 @@ class SectorStrategyPDFGenerator:
     
     def __init__(self):
         """初始化PDF生成器"""
-        self.setup_fonts()
+        pass
+    
+    def _get_chinese_font_css(self):
+        """获取中文支持的CSS样式"""
+        css_content = """
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
         
-    def setup_fonts(self):
-        """设置中文字体"""
-        try:
-            # 尝试注册常见的中文字体
-            font_paths = [
-                'C:/Windows/Fonts/msyh.ttc',  # 微软雅黑
-                'C:/Windows/Fonts/simsun.ttc',  # 宋体
-                'C:/Windows/Fonts/simhei.ttf',  # 黑体
-            ]
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'WenQuanYi Micro Hei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        h2 {
+            color: #764ba2;
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        h3 {
+            color: #f093fb;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 30px 0;
+        }
+        
+        strong {
+            font-weight: bold;
+        }
+        
+        em {
+            font-style: italic;
+        }
+        
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .center {
+            text-align: center;
+        }
+        
+        .title-page {
+            text-align: center;
+            margin-top: 100px;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 50px;
+        }
+        
+        .info-box {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .disclaimer {
+            margin: 50px 0 20px 0;
+            font-style: italic;
+            color: #666;
+            text-align: center;
+        }
+        
+        .small-text {
+            font-size: 14px;
+            color: #666;
+        }
+        """
+        return css_content
+    
+    def _generate_markdown_content(self, data: dict) -> str:
+        """生成Markdown格式的报告内容"""
+        timestamp = data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        final_predictions = data.get('final_predictions', {})
+        agents_analysis = data.get('agents_analysis', {})
+        comprehensive_report = data.get('comprehensive_report', '')
+        
+        # 生成Markdown内容
+        markdown_content = f"""
+# 智策板块策略分析报告
+
+## AI驱动的多维度板块投资决策支持系统
+
+---
+
+<div class="center">
+**生成时间:** {timestamp}<br/>
+**分析周期:** 当日市场数据<br/>
+**AI模型:** DeepSeek Multi-Agent System<br/>
+**分析维度:** 宏观·板块·资金·情绪
+</div>
+
+<div class="disclaimer">
+本报告由AI系统自动生成，仅供参考，不构成投资建议。
+投资有风险，决策需谨慎。
+</div>
+
+---
+
+## 一、市场概况
+
+本报告基于{timestamp}的实时市场数据，
+通过四位AI智能体的多维度分析，为您提供板块投资策略建议。
+
+### 分析师团队
+- **宏观策略师** - 分析宏观经济、政策导向、新闻事件
+- **板块诊断师** - 分析板块走势、估值水平、轮动特征
+- **资金流向分析师** - 分析主力资金、北向资金流向
+- **市场情绪解码员** - 分析市场情绪、热度、赚钱效应
+
+"""
+        
+        # 核心预测
+        markdown_content += "\n---\n\n## 二、核心预测\n"
+        
+        if final_predictions.get('prediction_text'):
+            # 文本格式预测
+            markdown_content += f"\n{final_predictions['prediction_text']}\n"
+        else:
+            # JSON格式预测
             
-            for font_path in font_paths:
-                if os.path.exists(font_path):
-                    try:
-                        pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
-                        self.chinese_font = 'ChineseFont'
-                        print(f"[PDF] 成功加载字体: {font_path}")
-                        return
-                    except:
-                        continue
+            # 1. 板块多空
+            long_short = final_predictions.get('long_short', {})
+            bullish = long_short.get('bullish', [])
+            bearish = long_short.get('bearish', [])
             
-            # 如果都失败，使用默认字体
-            self.chinese_font = 'Helvetica'
-            print("[PDF] 警告: 未找到中文字体，使用默认字体")
+            if bullish or bearish:
+                markdown_content += "\n### 2.1 板块多空预测\n\n"
+                
+                # 看多板块
+                if bullish:
+                    markdown_content += "**看多板块:**\n\n"
+                    for idx, item in enumerate(bullish, 1):
+                        markdown_content += f"{idx}. **{item.get('sector', 'N/A')}** (信心度: {item.get('confidence', 0)}/10)\n"
+                        markdown_content += f"   理由: {item.get('reason', 'N/A')}\n"
+                        markdown_content += f"   风险: {item.get('risk', 'N/A')}\n\n"
+                
+                # 看空板块
+                if bearish:
+                    markdown_content += "**看空板块:**\n\n"
+                    for idx, item in enumerate(bearish, 1):
+                        markdown_content += f"{idx}. **{item.get('sector', 'N/A')}** (信心度: {item.get('confidence', 0)}/10)\n"
+                        markdown_content += f"   理由: {item.get('reason', 'N/A')}\n"
+                        markdown_content += f"   风险: {item.get('risk', 'N/A')}\n\n"
             
-        except Exception as e:
-            print(f"[PDF] 字体设置失败: {e}")
-            self.chinese_font = 'Helvetica'
+            # 2. 板块轮动
+            rotation = final_predictions.get('rotation', {})
+            current_strong = rotation.get('current_strong', [])
+            potential = rotation.get('potential', [])
+            
+            if current_strong or potential:
+                markdown_content += "### 2.2 板块轮动预测\n\n"
+                
+                # 当前强势
+                if current_strong:
+                    markdown_content += "**当前强势板块:**\n\n"
+                    for item in current_strong:
+                        markdown_content += f"• **{item.get('sector', 'N/A')}**\n"
+                        markdown_content += f"  轮动逻辑: {item.get('logic', 'N/A')[:100]}...\n"
+                        markdown_content += f"  时间窗口: {item.get('time_window', 'N/A')}\n"
+                        markdown_content += f"  操作建议: {item.get('advice', 'N/A')}\n\n"
+                
+                # 潜力接力
+                if potential:
+                    markdown_content += "**潜力接力板块:**\n\n"
+                    for item in potential:
+                        markdown_content += f"• **{item.get('sector', 'N/A')}**\n"
+                        markdown_content += f"  轮动逻辑: {item.get('logic', 'N/A')[:100]}...\n"
+                        markdown_content += f"  时间窗口: {item.get('time_window', 'N/A')}\n"
+                        markdown_content += f"  操作建议: {item.get('advice', 'N/A')}\n\n"
+            
+            # 3. 板块热度
+            heat = final_predictions.get('heat', {})
+            hottest = heat.get('hottest', [])
+            
+            if hottest:
+                markdown_content += "### 2.3 板块热度排行\n\n"
+                markdown_content += "| 排名 | 板块 | 热度评分 | 趋势 | 持续性 |\n"
+                markdown_content += "|------|------|----------|------|--------|\n"
+                for idx, item in enumerate(hottest[:5], 1):
+                    markdown_content += f"| {idx} | {item.get('sector', 'N/A')} | {item.get('score', 0)} | {item.get('trend', 'N/A')} | {item.get('sustainability', 'N/A')} |\n"
+            
+            # 4. 策略总结
+            summary = final_predictions.get('summary', {})
+            if summary:
+                markdown_content += "### 2.4 策略总结\n\n"
+                
+                # 市场观点
+                if summary.get('market_view'):
+                    markdown_content += f"**市场观点:** {summary['market_view']}\n\n"
+                
+                # 核心机会
+                if summary.get('key_opportunity'):
+                    markdown_content += f"**核心机会:** {summary['key_opportunity']}\n\n"
+                
+                # 主要风险
+                if summary.get('major_risk'):
+                    markdown_content += f"**主要风险:** {summary['major_risk']}\n\n"
+                
+                # 整体策略
+                if summary.get('strategy'):
+                    markdown_content += f"**整体策略:** {summary['strategy']}\n\n"
+        
+        # AI智能体分析摘要
+        if agents_analysis:
+            markdown_content += "\n---\n\n## 三、AI智能体分析摘要\n\n"
+            
+            for key, agent_data in agents_analysis.items():
+                agent_name = agent_data.get('agent_name', '未知分析师')
+                agent_role = agent_data.get('agent_role', '')
+                analysis = agent_data.get('analysis', '')
+                
+                # 分析师名称和职责
+                markdown_content += f"### {agent_name}\n"
+                if agent_role:
+                    markdown_content += f"_{agent_role}_\n\n"
+                
+                # 分析内容（截取前500字）
+                analysis_preview = analysis[:500] + "..." if len(analysis) > 500 else analysis
+                markdown_content += f"{analysis_preview}\n\n"
+        
+        # 综合研判
+        if comprehensive_report:
+            markdown_content += "\n---\n\n## 四、综合研判\n\n"
+            
+            # 截取前1000字
+            report_preview = comprehensive_report[:1000] + "..." if len(comprehensive_report) > 1000 else comprehensive_report
+            markdown_content += f"{report_preview}\n\n"
+        
+        # 结束语
+        markdown_content += "\n<div class='center'>\n<i>--- 报告结束 ---<br/>\n"
+        markdown_content += "本报告由智策AI系统自动生成</i>\n</div>\n"
+        
+        return markdown_content
     
     def generate_pdf(self, result_data: dict, output_path: str = None) -> str:
         """
@@ -68,40 +328,32 @@ class SectorStrategyPDFGenerator:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_path = os.path.join(temp_dir, f"智策报告_{timestamp}.pdf")
             
-            # 创建PDF文档
-            doc = SimpleDocTemplate(
-                output_path,
-                pagesize=A4,
-                rightMargin=0.5*inch,
-                leftMargin=0.5*inch,
-                topMargin=0.5*inch,
-                bottomMargin=0.5*inch
-            )
+            # 1. 生成Markdown内容
+            markdown_content = self._generate_markdown_content(result_data)
             
-            # 构建内容
-            story = []
+            # 2. 使用markdown-it-py将Markdown转换为HTML
+            md = MarkdownIt()
+            html_content = md.render(markdown_content)
             
-            # 添加标题页
-            story.extend(self._create_title_page(result_data))
-            story.append(PageBreak())
+            # 3. 添加完整的HTML结构
+            full_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>智策板块策略分析报告</title>
+            </head>
+            <body>
+                {html_content}
+            </body>
+            </html>
+            """
             
-            # 添加市场概况
-            story.extend(self._create_market_overview(result_data))
-            story.append(PageBreak())
+            # 4. 获取CSS样式
+            css = CSS(string=self._get_chinese_font_css())
             
-            # 添加核心预测
-            story.extend(self._create_predictions_section(result_data))
-            story.append(PageBreak())
-            
-            # 添加智能体分析摘要
-            story.extend(self._create_agents_summary(result_data))
-            story.append(PageBreak())
-            
-            # 添加综合研判
-            story.extend(self._create_comprehensive_report(result_data))
-            
-            # 生成PDF
-            doc.build(story)
+            # 5. 使用weasyprint生成PDF
+            HTML(string=full_html).write_pdf(output_path, stylesheets=[css])
             
             print(f"[PDF] 报告生成成功: {output_path}")
             return output_path
@@ -111,386 +363,6 @@ class SectorStrategyPDFGenerator:
             import traceback
             traceback.print_exc()
             raise
-    
-    def _create_title_page(self, data: dict) -> list:
-        """创建标题页"""
-        styles = self._get_styles()
-        elements = []
-        
-        # 添加空白
-        elements.append(Spacer(1, 2*inch))
-        
-        # 主标题
-        title = Paragraph("智策板块策略分析报告", styles['Title'])
-        elements.append(title)
-        elements.append(Spacer(1, 0.5*inch))
-        
-        # 副标题
-        subtitle = Paragraph("AI驱动的多维度板块投资决策支持系统", styles['Heading2'])
-        elements.append(subtitle)
-        elements.append(Spacer(1, 1*inch))
-        
-        # 报告信息
-        timestamp = data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        info_text = f"""
-        <para align=center>
-        <b>生成时间:</b> {timestamp}<br/>
-        <b>分析周期:</b> 当日市场数据<br/>
-        <b>AI模型:</b> DeepSeek Multi-Agent System<br/>
-        <b>分析维度:</b> 宏观·板块·资金·情绪
-        </para>
-        """
-        info = Paragraph(info_text, styles['Normal'])
-        elements.append(info)
-        elements.append(Spacer(1, 1*inch))
-        
-        # 免责声明
-        disclaimer = Paragraph(
-            "<para align=center><i>本报告由AI系统自动生成，仅供参考，不构成投资建议。<br/>"
-            "投资有风险，决策需谨慎。</i></para>",
-            styles['Normal']
-        )
-        elements.append(disclaimer)
-        
-        return elements
-    
-    def _create_market_overview(self, data: dict) -> list:
-        """创建市场概况部分"""
-        styles = self._get_styles()
-        elements = []
-        
-        # 标题
-        elements.append(Paragraph("一、市场概况", styles['Heading1']))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        # 这里需要从原始数据中提取市场概况
-        # 由于result_data中可能没有直接的市场数据，我们从agents_analysis中提取
-        
-        overview_text = f"""
-        <para>
-        本报告基于{data.get('timestamp', 'N/A')}的实时市场数据，
-        通过四位AI智能体的多维度分析，为您提供板块投资策略建议。
-        </para>
-        """
-        elements.append(Paragraph(overview_text, styles['Normal']))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        # 分析师团队
-        team_text = """
-        <para>
-        <b>分析师团队:</b><br/>
-        • 宏观策略师 - 分析宏观经济、政策导向、新闻事件<br/>
-        • 板块诊断师 - 分析板块走势、估值水平、轮动特征<br/>
-        • 资金流向分析师 - 分析主力资金、北向资金流向<br/>
-        • 市场情绪解码员 - 分析市场情绪、热度、赚钱效应
-        </para>
-        """
-        elements.append(Paragraph(team_text, styles['Normal']))
-        
-        return elements
-    
-    def _create_predictions_section(self, data: dict) -> list:
-        """创建核心预测部分"""
-        styles = self._get_styles()
-        elements = []
-        
-        predictions = data.get('final_predictions', {})
-        
-        if predictions.get('prediction_text'):
-            # 文本格式
-            elements.append(Paragraph("二、核心预测", styles['Heading1']))
-            elements.append(Spacer(1, 0.2*inch))
-            elements.append(Paragraph(predictions['prediction_text'], styles['Normal']))
-            return elements
-        
-        # JSON格式预测
-        elements.append(Paragraph("二、核心预测", styles['Heading1']))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        # 1. 板块多空
-        elements.extend(self._create_long_short_section(predictions, styles))
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # 2. 板块轮动
-        elements.extend(self._create_rotation_section(predictions, styles))
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # 3. 板块热度
-        elements.extend(self._create_heat_section(predictions, styles))
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # 4. 策略总结
-        elements.extend(self._create_summary_section(predictions, styles))
-        
-        return elements
-    
-    def _create_long_short_section(self, predictions: dict, styles: dict) -> list:
-        """创建板块多空部分"""
-        elements = []
-        
-        elements.append(Paragraph("2.1 板块多空预测", styles['Heading2']))
-        elements.append(Spacer(1, 0.1*inch))
-        
-        long_short = predictions.get('long_short', {})
-        
-        # 看多板块
-        bullish = long_short.get('bullish', [])
-        if bullish:
-            elements.append(Paragraph("<b>看多板块:</b>", styles['Normal']))
-            
-            for idx, item in enumerate(bullish, 1):
-                text = f"""
-                {idx}. <b>{item.get('sector', 'N/A')}</b> (信心度: {item.get('confidence', 0)}/10)<br/>
-                   理由: {item.get('reason', 'N/A')}<br/>
-                   风险: {item.get('risk', 'N/A')}
-                """
-                elements.append(Paragraph(text, styles['Small']))
-                elements.append(Spacer(1, 0.05*inch))
-        
-        # 看空板块
-        bearish = long_short.get('bearish', [])
-        if bearish:
-            elements.append(Spacer(1, 0.1*inch))
-            elements.append(Paragraph("<b>看空板块:</b>", styles['Normal']))
-            
-            for idx, item in enumerate(bearish, 1):
-                text = f"""
-                {idx}. <b>{item.get('sector', 'N/A')}</b> (信心度: {item.get('confidence', 0)}/10)<br/>
-                   理由: {item.get('reason', 'N/A')}<br/>
-                   风险: {item.get('risk', 'N/A')}
-                """
-                elements.append(Paragraph(text, styles['Small']))
-                elements.append(Spacer(1, 0.05*inch))
-        
-        return elements
-    
-    def _create_rotation_section(self, predictions: dict, styles: dict) -> list:
-        """创建板块轮动部分"""
-        elements = []
-        
-        elements.append(Paragraph("2.2 板块轮动预测", styles['Heading2']))
-        elements.append(Spacer(1, 0.1*inch))
-        
-        rotation = predictions.get('rotation', {})
-        
-        # 当前强势
-        current_strong = rotation.get('current_strong', [])
-        if current_strong:
-            elements.append(Paragraph("<b>当前强势板块:</b>", styles['Normal']))
-            for item in current_strong:
-                text = f"""
-                • <b>{item.get('sector', 'N/A')}</b><br/>
-                  轮动逻辑: {item.get('logic', 'N/A')[:100]}...<br/>
-                  时间窗口: {item.get('time_window', 'N/A')}<br/>
-                  操作建议: {item.get('advice', 'N/A')}
-                """
-                elements.append(Paragraph(text, styles['Small']))
-                elements.append(Spacer(1, 0.05*inch))
-        
-        # 潜力接力
-        potential = rotation.get('potential', [])
-        if potential:
-            elements.append(Spacer(1, 0.1*inch))
-            elements.append(Paragraph("<b>潜力接力板块:</b>", styles['Normal']))
-            for item in potential:
-                text = f"""
-                • <b>{item.get('sector', 'N/A')}</b><br/>
-                  轮动逻辑: {item.get('logic', 'N/A')[:100]}...<br/>
-                  时间窗口: {item.get('time_window', 'N/A')}<br/>
-                  操作建议: {item.get('advice', 'N/A')}
-                """
-                elements.append(Paragraph(text, styles['Small']))
-                elements.append(Spacer(1, 0.05*inch))
-        
-        return elements
-    
-    def _create_heat_section(self, predictions: dict, styles: dict) -> list:
-        """创建板块热度部分"""
-        elements = []
-        
-        elements.append(Paragraph("2.3 板块热度排行", styles['Heading2']))
-        elements.append(Spacer(1, 0.1*inch))
-        
-        heat = predictions.get('heat', {})
-        
-        # 创建表格数据
-        table_data = [['排名', '板块', '热度评分', '趋势', '持续性']]
-        
-        # 最热板块
-        hottest = heat.get('hottest', [])
-        for idx, item in enumerate(hottest[:5], 1):
-            table_data.append([
-                str(idx),
-                item.get('sector', 'N/A'),
-                str(item.get('score', 0)),
-                item.get('trend', 'N/A'),
-                item.get('sustainability', 'N/A')
-            ])
-        
-        if len(table_data) > 1:
-            # 创建表格
-            table = Table(table_data, colWidths=[0.8*inch, 2*inch, 1*inch, 1*inch, 1*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), self.chinese_font),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), self.chinese_font),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ]))
-            elements.append(table)
-        
-        return elements
-    
-    def _create_summary_section(self, predictions: dict, styles: dict) -> list:
-        """创建策略总结部分"""
-        elements = []
-        
-        summary = predictions.get('summary', {})
-        
-        if not summary:
-            return elements
-        
-        elements.append(Paragraph("2.4 策略总结", styles['Heading2']))
-        elements.append(Spacer(1, 0.1*inch))
-        
-        # 市场观点
-        if summary.get('market_view'):
-            elements.append(Paragraph("<b>市场观点:</b>", styles['Normal']))
-            elements.append(Paragraph(summary['market_view'], styles['Small']))
-            elements.append(Spacer(1, 0.1*inch))
-        
-        # 核心机会
-        if summary.get('key_opportunity'):
-            elements.append(Paragraph("<b>核心机会:</b>", styles['Normal']))
-            elements.append(Paragraph(summary['key_opportunity'], styles['Small']))
-            elements.append(Spacer(1, 0.1*inch))
-        
-        # 主要风险
-        if summary.get('major_risk'):
-            elements.append(Paragraph("<b>主要风险:</b>", styles['Normal']))
-            elements.append(Paragraph(summary['major_risk'], styles['Small']))
-            elements.append(Spacer(1, 0.1*inch))
-        
-        # 整体策略
-        if summary.get('strategy'):
-            elements.append(Paragraph("<b>整体策略:</b>", styles['Normal']))
-            elements.append(Paragraph(summary['strategy'], styles['Small']))
-        
-        return elements
-    
-    def _create_agents_summary(self, data: dict) -> list:
-        """创建智能体分析摘要"""
-        styles = self._get_styles()
-        elements = []
-        
-        elements.append(Paragraph("三、AI智能体分析摘要", styles['Heading1']))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        agents_analysis = data.get('agents_analysis', {})
-        
-        for key, agent_data in agents_analysis.items():
-            agent_name = agent_data.get('agent_name', '未知分析师')
-            agent_role = agent_data.get('agent_role', '')
-            analysis = agent_data.get('analysis', '')
-            
-            # 分析师名称和职责
-            elements.append(Paragraph(f"<b>{agent_name}</b>", styles['Heading2']))
-            elements.append(Paragraph(f"<i>{agent_role}</i>", styles['Small']))
-            elements.append(Spacer(1, 0.1*inch))
-            
-            # 分析内容（截取前500字）
-            analysis_preview = analysis[:500] + "..." if len(analysis) > 500 else analysis
-            elements.append(Paragraph(analysis_preview, styles['Small']))
-            elements.append(Spacer(1, 0.2*inch))
-        
-        return elements
-    
-    def _create_comprehensive_report(self, data: dict) -> list:
-        """创建综合研判部分"""
-        styles = self._get_styles()
-        elements = []
-        
-        elements.append(Paragraph("四、综合研判", styles['Heading1']))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        report = data.get('comprehensive_report', '')
-        
-        if report:
-            # 截取前1000字
-            report_preview = report[:1000] + "..." if len(report) > 1000 else report
-            elements.append(Paragraph(report_preview, styles['Small']))
-        else:
-            elements.append(Paragraph("暂无综合研判数据", styles['Normal']))
-        
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # 添加结束语
-        ending = Paragraph(
-            "<para align=center><i>--- 报告结束 ---<br/>"
-            "本报告由智策AI系统自动生成</i></para>",
-            styles['Normal']
-        )
-        elements.append(ending)
-        
-        return elements
-    
-    def _get_styles(self) -> dict:
-        """获取样式"""
-        styles = getSampleStyleSheet()
-        
-        # 自定义样式
-        custom_styles = {
-            'Title': ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Title'],
-                fontName=self.chinese_font,
-                fontSize=24,
-                textColor=colors.HexColor('#667eea'),
-                spaceAfter=30,
-                alignment=TA_CENTER
-            ),
-            'Heading1': ParagraphStyle(
-                'CustomHeading1',
-                parent=styles['Heading1'],
-                fontName=self.chinese_font,
-                fontSize=16,
-                textColor=colors.HexColor('#667eea'),
-                spaceAfter=12,
-                spaceBefore=12
-            ),
-            'Heading2': ParagraphStyle(
-                'CustomHeading2',
-                parent=styles['Heading2'],
-                fontName=self.chinese_font,
-                fontSize=14,
-                textColor=colors.HexColor('#764ba2'),
-                spaceAfter=10,
-                spaceBefore=10
-            ),
-            'Normal': ParagraphStyle(
-                'CustomNormal',
-                parent=styles['Normal'],
-                fontName=self.chinese_font,
-                fontSize=11,
-                leading=16,
-                alignment=TA_JUSTIFY
-            ),
-            'Small': ParagraphStyle(
-                'CustomSmall',
-                parent=styles['Normal'],
-                fontName=self.chinese_font,
-                fontSize=9,
-                leading=14,
-                alignment=TA_LEFT
-            )
-        }
-        
-        return custom_styles
 
 
 # 测试函数
@@ -535,4 +407,3 @@ if __name__ == "__main__":
     generator = SectorStrategyPDFGenerator()
     output_path = generator.generate_pdf(test_data)
     print(f"测试PDF生成: {output_path}")
-
