@@ -32,6 +32,12 @@ class ConfigManager:
                 "required": False,
                 "type": "password"
             },
+            "TIMEZONE": {
+                "value": "Asia/Shanghai",
+                "description": "系统时区配置，默认为中国上海",
+                "required": False,
+                "type": "text"
+            },
             "MINIQMT_ENABLED": {
                 "value": "false",
                 "description": "启用MiniQMT量化交易",
@@ -169,15 +175,20 @@ class ConfigManager:
             lines.append("")
             
             # DeepSeek配置
-            lines.append("# ========== DeepSeek API配置 ==========")
-            lines.append(f'DEEPSEEK_API_KEY="{config.get("DEEPSEEK_API_KEY", "")}"')
-            lines.append(f'DEEPSEEK_BASE_URL="{config.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")}"')
-            lines.append("")
-            
-            # Tushare配置
-            lines.append("# ========== Tushare数据接口（可选）==========")
-            lines.append(f'TUSHARE_TOKEN="{config.get("TUSHARE_TOKEN", "")}"')
-            lines.append("")
+        lines.append("# ========== DeepSeek API配置 ==========")
+        lines.append(f'DEEPSEEK_API_KEY="{config.get("DEEPSEEK_API_KEY", "")}"')
+        lines.append(f'DEEPSEEK_BASE_URL="{config.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")}"')
+        lines.append("")
+        
+        # 系统配置
+        lines.append("# ========== 系统配置 ==========")
+        lines.append(f'TIMEZONE="{config.get("TIMEZONE", "Asia/Shanghai")}"')
+        lines.append("")
+        
+        # Tushare配置
+        lines.append("# ========== Tushare数据接口（可选）==========")
+        lines.append(f'TUSHARE_TOKEN="{config.get("TUSHARE_TOKEN", "")}"')
+        lines.append("")
             
             # MiniQMT配置
             lines.append("# ========== MiniQMT量化交易配置（可选）==========")

@@ -2,6 +2,9 @@ import openai
 import json
 from typing import Dict, List, Any, Optional
 import config
+from datetime import datetime
+import pytz
+from config_manager import config_manager
 
 class DeepSeekClient:
     """DeepSeek API客户端"""
@@ -12,6 +15,20 @@ class DeepSeekClient:
             api_key=config.DEEPSEEK_API_KEY,
             base_url=config.DEEPSEEK_BASE_URL
         )
+        # 获取时区配置
+        self.config = config_manager.read_env()
+        self.timezone_str = self.config.get("TIMEZONE", "Asia/Shanghai")
+    
+    def get_current_datetime(self):
+        """获取当前日期时间，考虑时区配置"""
+        try:
+            tz = pytz.timezone(self.timezone_str)
+            return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception as e:
+            # 时区配置错误时，使用默认时区
+            print(f"时区配置错误: {e}，使用默认时区Asia/Shanghai")
+            tz = pytz.timezone("Asia/Shanghai")
+            return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
         
     def call_api(self, messages: List[Dict[str, str]], model: Optional[str] = None, 
                  temperature: float = 0.7, max_tokens: int = 2000) -> str:
@@ -24,6 +41,24 @@ class DeepSeekClient:
             max_tokens = 8000  # reasoner 模型需要更多 tokens 来输出推理过程
         
         try:
+            # 检查messages中的用户消息是否已经包含分析时间信息
+            has_analysis_time = False
+            for msg in messages:
+                if msg['role'] == 'user' and '【分析时间】' in msg['content']:
+                    has_analysis_time = True
+                    break
+            
+            # 如果没有包含分析时间信息，则添加
+            if not has_analysis_time:
+                current_datetime = self.get_current_datetime()
+                analysis_time_header = f"【分析时间】\n当前日期时间: {current_datetime}\n时区: {self.timezone_str}\n\n"
+                
+                # 找到用户消息并在开头添加分析时间信息
+                for i, msg in enumerate(messages):
+                    if msg['role'] == 'user':
+                        messages[i]['content'] = analysis_time_header + msg['content']
+                        break
+            
             response = self.client.chat.completions.create(
                 model=model_to_use,
                 messages=messages,
@@ -53,7 +88,12 @@ class DeepSeekClient:
     
     def technical_analysis(self, stock_info: Dict, stock_data: Any, indicators: Dict) -> str:
         """技术面分析"""
+        current_datetime = self.get_current_datetime()
         prompt = f"""
+【分析时间】
+当前日期时间: {current_datetime}
+时区: {self.timezone_str}
+
 你是一名资深的技术分析师。请基于以下股票数据进行专业的技术面分析：
 
 股票信息：
@@ -151,7 +191,12 @@ class DeepSeekClient:
 以上是通过akshare获取的最近8期季度财务报告，请重点基于这些数据进行趋势分析。
 """
         
+        current_datetime = self.get_current_datetime()
         prompt = f"""
+【分析时间】
+当前日期时间: {current_datetime}
+时区: {self.timezone_str}
+
 你是一名资深的基本面分析师，拥有CFA资格和10年以上的证券分析经验。请基于以下详细信息进行深入的基本面分析：
 
 【基本信息】
@@ -256,7 +301,12 @@ class DeepSeekClient:
         else:
             fund_flow_section = "\n【资金流向数据】\n注意：未能获取到资金流向数据，将基于成交量进行分析。\n"
         
+        current_datetime = self.get_current_datetime()
         prompt = f"""
+【分析时间】
+当前日期时间: {current_datetime}
+时区: {self.timezone_str}
+
 你是一名资深的资金面分析师，擅长从资金流向数据中洞察主力行为和市场趋势。
 
 【基本信息】
@@ -354,7 +404,12 @@ class DeepSeekClient:
     def comprehensive_discussion(self, technical_report: str, fundamental_report: str, 
                                fund_flow_report: str, stock_info: Dict) -> str:
         """综合讨论"""
+        current_datetime = self.get_current_datetime()
         prompt = f"""
+【分析时间】
+当前日期时间: {current_datetime}
+时区: {self.timezone_str}
+
 现在需要进行一场投资决策会议，你作为首席分析师，需要综合各位分析师的报告进行讨论。
 
 股票基本信息：
@@ -393,7 +448,12 @@ class DeepSeekClient:
     def final_decision(self, comprehensive_discussion: str, stock_info: Dict, 
                       indicators: Dict) -> Dict[str, Any]:
         """最终投资决策"""
+        current_datetime = self.get_current_datetime()
         prompt = f"""
+【分析时间】
+当前日期时间: {current_datetime}
+时区: {self.timezone_str}
+
 基于前期的综合分析讨论，现在需要做出最终的投资决策。
 
 股票信息：
