@@ -165,9 +165,12 @@ async def markdown_to_pdf_browser(markdown_content, output_path):
         temp_html_path = temp_html.name
     
     try:
-        # 启动浏览器
+        # 启动浏览器，禁用信号处理以避免主线程限制
         browser = await launch(
             headless=True,
+            handleSIGINT=False,
+            handleSIGTERM=False,
+            handleSIGHUP=False,
             args=[
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
