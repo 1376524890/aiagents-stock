@@ -5,8 +5,27 @@
 from datetime import datetime
 import os
 import tempfile
+import asyncio
+import io
 from markdown_it import MarkdownIt
-from weasyprint import HTML, CSS
+import yaml
+
+# 条件导入pyppeteer，添加异常处理
+try:
+    from pyppeteer import launch
+    has_pyppeteer = True
+except (ImportError, OSError) as e:
+    # 当pyppeteer无法导入时，使用reportlab作为备选
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    has_pyppeteer = False
+    print(f"pyppeteer导入失败，将使用reportlab作为备选: {e}")
 
 
 class LonghubangPDFGenerator:
@@ -15,6 +34,52 @@ class LonghubangPDFGenerator:
     def __init__(self):
         """初始化PDF生成器"""
         pass
+    
+    def _register_chinese_fonts(self):
+        """注册中文字体 - 支持Windows和Linux系统"""
+        try:
+            # 检查是否已经注册过
+            if 'ChineseFont' in pdfmetrics.getRegisteredFontNames():
+                return 'ChineseFont'
+            
+            # Windows系统字体路径
+            windows_font_paths = [
+                'C:/Windows/Fonts/simsun.ttc',  # 宋体
+                'C:/Windows/Fonts/simhei.ttf',  # 黑体
+                'C:/Windows/Fonts/msyh.ttc',    # 微软雅黑
+                'C:/Windows/Fonts/msyh.ttf',    # 微软雅黑（TTF格式）
+            ]
+            
+            # Linux系统字体路径（Docker环境）
+            linux_font_paths = [
+                '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',  # 文泉驿正黑
+                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',  # 文泉驿微米黑
+                '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',  # Noto Sans CJK
+                '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc',  # Noto Serif CJK
+                '/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf',  # Droid字体
+            ]
+            
+            # 合并所有可能的字体路径
+            all_font_paths = windows_font_paths + linux_font_paths
+            
+            # 尝试注册字体
+            for font_path in all_font_paths:
+                if os.path.exists(font_path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+                        print(f"✅ 成功注册中文字体: {font_path}")
+                        return 'ChineseFont'
+                    except Exception as e:
+                        print(f"⚠️ 尝试注册字体 {font_path} 失败: {e}")
+                        continue
+            
+            # 如果没有找到中文字体，打印警告并使用默认字体
+            print("⚠️ 警告：未找到中文字体，PDF中文可能显示为方框")
+            print("建议：在Docker中安装中文字体包")
+            return 'Helvetica'
+        except Exception as e:
+            print(f"❌ 注册中文字体时出错: {e}")
+            return 'Helvetica'
     
     def _get_chinese_font_css(self):
         """获取中文支持的CSS样式"""
@@ -264,6 +329,82 @@ class LonghubangPDFGenerator:
         
         return markdown_content
     
+    async def _markdown_to_pdf_browser(self, markdown_content, output_path):
+        """使用无头浏览器将Markdown转换为PDF"""
+        # 将Markdown转换为HTML
+        md = MarkdownIt()
+        html_content = md.render(markdown_content)
+        
+        # 获取CSS样式
+        css_content = self._get_chinese_font_css()
+        
+        # 完整的HTML结构
+        full_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>智瞰龙虎榜分析报告</title>
+            <style>
+            {css_content}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        # 创建临时HTML文件
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
+            temp_html.write(full_html)
+            temp_html_path = temp_html.name
+        
+        try:
+            # 启动浏览器
+            browser = await launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--window-size=1920,1080'
+                ]
+            )
+            
+            # 创建新页面
+            page = await browser.newPage()
+            
+            # 导航到临时HTML文件
+            await page.goto(f'file://{temp_html_path}', waitUntil='networkidle0')
+            
+            # 生成PDF
+            await page.pdf({
+                'path': output_path,
+                'format': 'A4',
+                'margin': {
+                    'top': '2cm',
+                    'right': '2cm',
+                    'bottom': '2cm',
+                    'left': '2cm'
+                },
+                'printBackground': True
+            })
+            
+            # 关闭浏览器
+            await browser.close()
+            
+            print(f"使用浏览器生成PDF成功: {output_path}")
+            return True
+        except Exception as e:
+            print(f"使用浏览器生成PDF失败: {e}")
+            raise
+        finally:
+            # 清理临时文件
+            if os.path.exists(temp_html_path):
+                os.unlink(temp_html_path)
+    
     def generate_pdf(self, result_data: dict, output_path: str = None) -> str:
         """
         生成龙虎榜分析PDF报告
@@ -285,29 +426,85 @@ class LonghubangPDFGenerator:
             # 1. 生成Markdown内容
             markdown_content = self._generate_markdown_content(result_data)
             
-            # 2. 使用markdown-it-py将Markdown转换为HTML
-            md = MarkdownIt()
-            html_content = md.render(markdown_content)
-            
-            # 3. 添加完整的HTML结构
-            full_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>智瞰龙虎榜分析报告</title>
-            </head>
-            <body>
-                {html_content}
-            </body>
-            </html>
-            """
-            
-            # 4. 获取CSS样式
-            css = CSS(string=self._get_chinese_font_css())
-            
-            # 5. 使用weasyprint生成PDF
-            HTML(string=full_html).write_pdf(output_path, stylesheets=[css])
+            if has_pyppeteer:
+                # 使用浏览器生成PDF
+                asyncio.run(self._markdown_to_pdf_browser(markdown_content, output_path))
+            else:
+                # reportlab备用方式生成PDF
+                # 注册中文字体
+                chinese_font = self._register_chinese_fonts()
+                
+                # 创建内存中的PDF文档
+                buffer = io.BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+                
+                # 获取样式
+                styles = getSampleStyleSheet()
+                
+                # 创建自定义样式
+                title_style = ParagraphStyle(
+                    'CustomTitle',
+                    parent=styles['Heading1'],
+                    fontName=chinese_font,
+                    fontSize=24,
+                    spaceAfter=30,
+                    alignment=TA_CENTER,
+                    textColor=colors.darkblue
+                )
+                
+                heading_style = ParagraphStyle(
+                    'CustomHeading',
+                    parent=styles['Heading2'],
+                    fontName=chinese_font,
+                    fontSize=16,
+                    spaceAfter=12,
+                    spaceBefore=20,
+                    textColor=colors.darkblue
+                )
+                
+                subheading_style = ParagraphStyle(
+                    'CustomSubHeading',
+                    parent=styles['Heading3'],
+                    fontName=chinese_font,
+                    fontSize=14,
+                    spaceAfter=8,
+                    spaceBefore=12,
+                    textColor=colors.darkgreen
+                )
+                
+                normal_style = ParagraphStyle(
+                    'CustomNormal',
+                    parent=styles['Normal'],
+                    fontName=chinese_font,
+                    fontSize=11,
+                    spaceAfter=6,
+                    alignment=TA_JUSTIFY
+                )
+                
+                # 开始构建PDF内容
+                story = []
+                
+                # 标题
+                current_time = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
+                story.append(Paragraph("智瞰龙虎榜分析报告", title_style))
+                story.append(Paragraph(f"生成时间: {current_time}", normal_style))
+                story.append(Spacer(1, 20))
+                
+                # 简单输出markdown内容，保留基本结构
+                story.append(Paragraph("报告内容", heading_style))
+                # 截取部分markdown内容显示
+                preview_text = markdown_content[:1000] + "\n\n...(内容过长，仅显示部分)"
+                story.append(Paragraph(preview_text.replace('\n', '<br/>'), normal_style))
+                
+                # 生成PDF
+                doc.build(story)
+                
+                # 获取PDF内容并保存到文件
+                pdf_content = buffer.getvalue()
+                buffer.close()
+                
+                with open(output_path, 'wb') as f:
+                    f.write(pdf_content)
             
             print(f"[PDF] 龙虎榜报告生成成功: {output_path}")
             return output_path
