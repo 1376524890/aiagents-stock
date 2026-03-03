@@ -39,7 +39,7 @@ result = analyze_single_stock_for_batch(
         'sentiment': False,
         'news': False
     },
-    selected_model="qwen3-max"
+    selected_model="qwen3.5-plus"
 )
 ```
 

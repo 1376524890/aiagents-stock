@@ -400,7 +400,7 @@ def fetch_stock_data(self, stock_code):
 
 系统使用DeepSeek API作为AI推理引擎，支持多种模型，包括：
 
-1. **qwen3-max**：通用分析模型
+1. **qwen3.5-plus**：通用分析模型
 2. **deepseek-reasoner**：强化推理模型，适用于复杂分析任务
 
 ### 7.2 提示词工程

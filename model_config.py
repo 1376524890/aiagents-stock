@@ -4,13 +4,13 @@
 """
 
 model_options = {
-    "qwen3-max": "DeepSeek Chat (默认)",
+    "qwen3.5-plus": "DeepSeek Chat (默认)",
     "deepseek-reasoner": "DeepSeek Reasoner (推理增强)",
     "qwen-plus": "qwen-plus (阿里百炼)",
     "qwen-plus-latest": "qwen-plus-latest (阿里百炼)",
     "qwen-flash": "qwen-flash (阿里百炼)",
     "qwen-turbo": "qwen-turbo (阿里百炼)",
-    "qwen3-max": "qwen-max (阿里百炼)",
+    "qwen3.5-plus": "qwen-max (阿里百炼)",
     "qwen-long": "qwen-long (阿里百炼)",
     "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B": "DeepSeek-R1 免费(硅基流动)",
     "Qwen/Qwen2.5-7B-Instruct": "Qwen 免费(硅基流动)",

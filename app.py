@@ -800,7 +800,7 @@ def parse_stock_list(stock_input):
 
     return unique_list
 
-def analyze_single_stock_for_batch(symbol, period, enabled_analysts_config=None, selected_model='qwen3-max'):
+def analyze_single_stock_for_batch(symbol, period, enabled_analysts_config=None, selected_model='qwen3.5-plus'):
     """单个股票分析（用于批量分析）
 
     Args:
@@ -958,7 +958,7 @@ def run_batch_analysis(stock_list, period, batch_mode="顺序分析"):
         'sentiment': st.session_state.get('enable_sentiment', False),
         'news': st.session_state.get('enable_news', False)
     }
-    selected_model = st.session_state.get('selected_model', 'qwen3-max')
+    selected_model = st.session_state.get('selected_model', 'qwen3.5-plus')
 
     # 创建进度显示
     st.subheader(f"📊 批量分析进行中 ({batch_mode})")
@@ -1231,7 +1231,7 @@ def run_stock_analysis(symbol, period):
         # 6. 初始化AI分析系统
         status_text.text("🤖 正在初始化AI分析系统...")
         # 使用选择的模型
-        selected_model = st.session_state.get('selected_model', 'qwen3-max')
+        selected_model = st.session_state.get('selected_model', 'qwen3.5-plus')
         agents = StockAnalysisAgents(model=selected_model)
         progress_bar.progress(55)
 

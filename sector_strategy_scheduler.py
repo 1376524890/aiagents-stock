@@ -128,7 +128,7 @@ class SectorStrategyScheduler:
             
             # 2. 运行AI分析
             print("[智策定时] [2/3] AI智能体分析中...")
-            engine = SectorStrategyEngine(model="qwen3-max")
+            engine = SectorStrategyEngine(model="qwen3.5-plus")
             result = engine.run_comprehensive_analysis(data)
             
             if not result.get("success"):
