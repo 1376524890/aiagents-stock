@@ -1,21 +1,29 @@
 from deepseek_client import DeepSeekClient
-from typing import Dict, Any
+from typing import Dict, Any, Callable, Optional
 import time
 
 class StockAnalysisAgents:
     """股票分析AI智能体集合"""
-    
-    def __init__(self, model="qwen3.5-plus"):
+
+    def __init__(self, model="qwen3.5-plus", progress_callback: Optional[Callable[[str], None]] = None):
         self.model = model
         self.deepseek_client = DeepSeekClient(model=model)
+        self.progress_callback = progress_callback
+
+    def _update_progress(self, message: str):
+        """更新进度信息到前端"""
+        print(message)  # 后端控制台输出
+        if self.progress_callback:
+            self.progress_callback(message)  # 前端展示更新
         
     def technical_analyst_agent(self, stock_info: Dict, stock_data: Any, indicators: Dict) -> Dict[str, Any]:
         """技术面分析智能体"""
-        print("🔍 技术分析师正在分析中...")
-        time.sleep(1)  # 模拟分析时间
+        self._update_progress(f"🔍 技术分析师正在分析 {stock_info.get('name', '')}({stock_info.get('symbol', '')})...")
+        self._update_progress("   📊 分析技术指标：MA、RSI、MACD、布林带、KDJ...")
         
         analysis = self.deepseek_client.technical_analysis(stock_info, stock_data, indicators)
-        
+        self._update_progress("   ✅ 技术分析完成")
+
         return {
             "agent_name": "技术分析师",
             "agent_role": "负责技术指标分析、图表形态识别、趋势判断",
@@ -26,20 +34,19 @@ class StockAnalysisAgents:
     
     def fundamental_analyst_agent(self, stock_info: Dict, financial_data: Dict = None, quarterly_data: Dict = None) -> Dict[str, Any]:
         """基本面分析智能体"""
-        print("📊 基本面分析师正在分析中...")
-        
+        self._update_progress(f"📊 基本面分析师正在分析 {stock_info.get('name', '')}...")
+
         # 如果有季报数据，显示数据来源
         if quarterly_data and quarterly_data.get('data_success'):
             income_count = quarterly_data.get('income_statement', {}).get('periods', 0) if quarterly_data.get('income_statement') else 0
             balance_count = quarterly_data.get('balance_sheet', {}).get('periods', 0) if quarterly_data.get('balance_sheet') else 0
             cash_flow_count = quarterly_data.get('cash_flow', {}).get('periods', 0) if quarterly_data.get('cash_flow') else 0
-            print(f"   ✓ 已获取季报数据：利润表{income_count}期，资产负债表{balance_count}期，现金流量表{cash_flow_count}期")
+            self._update_progress(f"   📈 已获取季报数据：利润表{income_count}期，资产负债表{balance_count}期，现金流量表{cash_flow_count}期")
         else:
-            print("   ⚠ 未获取到季报数据，将基于基本财务数据分析")
-        
-        time.sleep(1)
-        
+            self._update_progress("   ⚠️ 未获取到季报数据，将基于基本财务数据分析")
+
         analysis = self.deepseek_client.fundamental_analysis(stock_info, financial_data, quarterly_data)
+        self._update_progress("   ✅ 基本面分析完成")
         
         return {
             "agent_name": "基本面分析师", 
@@ -52,17 +59,16 @@ class StockAnalysisAgents:
     
     def fund_flow_analyst_agent(self, stock_info: Dict, indicators: Dict, fund_flow_data: Dict = None) -> Dict[str, Any]:
         """资金面分析智能体"""
-        print("💰 资金面分析师正在分析中...")
-        
+        self._update_progress(f"💰 资金面分析师正在分析 {stock_info.get('name', '')}...")
+
         # 如果有资金流向数据，显示数据来源
         if fund_flow_data and fund_flow_data.get('data_success'):
-            print("   ✓ 已获取资金流向数据（akshare数据源）")
+            self._update_progress("   📊 已获取资金流向数据（近20个交易日主力/散户资金动向）")
         else:
-            print("   ⚠ 未获取到资金流向数据，将基于技术指标分析")
-        
-        time.sleep(1)
-        
+            self._update_progress("   ⚠️ 未获取到资金流向数据，将基于技术指标分析")
+
         analysis = self.deepseek_client.fund_flow_analysis(stock_info, indicators, fund_flow_data)
+        self._update_progress("   ✅ 资金面分析完成")
         
         return {
             "agent_name": "资金面分析师",
@@ -75,15 +81,20 @@ class StockAnalysisAgents:
     
     def risk_management_agent(self, stock_info: Dict, indicators: Dict, risk_data: Dict = None) -> Dict[str, Any]:
         """风险管理智能体（增强版）"""
-        print("⚠️ 风险管理师正在评估中...")
-        
+        self._update_progress(f"⚠️ 风险管理师正在评估 {stock_info.get('name', '')}...")
+
         # 如果有风险数据，显示数据来源
         if risk_data and risk_data.get('data_success'):
-            print("   ✓ 已获取问财风险数据（限售解禁、大股东减持、重要事件）")
+            risk_types = []
+            if risk_data.get('lifting_ban') and risk_data['lifting_ban'].get('has_data'):
+                risk_types.append("限售解禁")
+            if risk_data.get('shareholder_reduction') and risk_data['shareholder_reduction'].get('has_data'):
+                risk_types.append("股东减持")
+            if risk_data.get('important_events') and risk_data['important_events'].get('has_data'):
+                risk_types.append("重要事件")
+            self._update_progress(f"   🔍 已获取风险数据：{', '.join(risk_types) if risk_types else '暂无风险事件'}")
         else:
-            print("   ⚠ 未获取到风险数据，将基于基本信息分析")
-        
-        time.sleep(1)
+            self._update_progress("   ⚠️ 未获取到风险数据，将基于基本信息分析")
         
         # 构建风险数据文本
         risk_data_text = ""
@@ -206,7 +217,8 @@ class StockAnalysisAgents:
         ]
         
         analysis = self.deepseek_client.call_api(messages, max_tokens=6000)
-        
+        self._update_progress("   ✅ 风险评估完成")
+
         return {
             "agent_name": "风险管理师",
             "agent_role": "负责风险识别、风险评估、风险控制策略制定",
@@ -218,15 +230,13 @@ class StockAnalysisAgents:
     
     def market_sentiment_agent(self, stock_info: Dict, sentiment_data: Dict = None) -> Dict[str, Any]:
         """市场情绪分析智能体"""
-        print("📈 市场情绪分析师正在分析中...")
-        
+        self._update_progress(f"📈 市场情绪分析师正在分析 {stock_info.get('name', '')}...")
+
         # 如果有市场情绪数据，显示数据来源
         if sentiment_data and sentiment_data.get('data_success'):
-            print("   ✓ 已获取市场情绪数据（ARBR、换手率、涨跌停等）")
+            self._update_progress("   📊 已获取市场情绪数据（ARBR、换手率、涨跌停等）")
         else:
-            print("   ⚠ 未获取到详细情绪数据，将基于基本信息分析")
-        
-        time.sleep(1)
+            self._update_progress("   ⚠️ 未获取到详细情绪数据，将基于基本信息分析")
         
         # 构建带有市场情绪数据的prompt
         sentiment_data_text = ""
@@ -294,7 +304,8 @@ class StockAnalysisAgents:
         ]
         
         analysis = self.deepseek_client.call_api(messages, max_tokens=4000)
-        
+        self._update_progress("   ✅ 市场情绪分析完成")
+
         return {
             "agent_name": "市场情绪分析师",
             "agent_role": "负责市场情绪研究、投资者心理分析、热点追踪",
@@ -306,17 +317,15 @@ class StockAnalysisAgents:
     
     def news_analyst_agent(self, stock_info: Dict, news_data: Dict = None) -> Dict[str, Any]:
         """新闻分析智能体"""
-        print("📰 新闻分析师正在分析中...")
-        
+        self._update_progress(f"📰 新闻分析师正在分析 {stock_info.get('name', '')}...")
+
         # 如果有新闻数据，显示数据来源
         if news_data and news_data.get('data_success'):
             news_count = news_data.get('news_data', {}).get('count', 0) if news_data.get('news_data') else 0
             source = news_data.get('source', 'unknown')
-            print(f"   ✓ 已从 {source} 获取 {news_count} 条新闻")
+            self._update_progress(f"   📰 已从 {source} 获取 {news_count} 条新闻")
         else:
-            print("   ⚠ 未获取到新闻数据，将基于基本信息分析")
-        
-        time.sleep(1)
+            self._update_progress("   ⚠️ 未获取到新闻数据，将基于基本信息分析")
         
         # 构建带有新闻数据的prompt
         news_text = ""
@@ -394,7 +403,8 @@ class StockAnalysisAgents:
         ]
         
         analysis = self.deepseek_client.call_api(messages, max_tokens=4000)
-        
+        self._update_progress("   ✅ 新闻分析完成")
+
         return {
             "agent_name": "新闻分析师",
             "agent_role": "负责新闻事件分析、舆情研究、重大事件影响评估",
@@ -404,13 +414,13 @@ class StockAnalysisAgents:
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
     
-    def run_multi_agent_analysis(self, stock_info: Dict, stock_data: Any, indicators: Dict, 
-                                 financial_data: Dict = None, fund_flow_data: Dict = None, 
+    def run_multi_agent_analysis(self, stock_info: Dict, stock_data: Any, indicators: Dict,
+                                 financial_data: Dict = None, fund_flow_data: Dict = None,
                                  sentiment_data: Dict = None, news_data: Dict = None,
                                  quarterly_data: Dict = None, risk_data: Dict = None,
                                  enabled_analysts: Dict = None) -> Dict[str, Any]:
         """运行多智能体分析
-        
+
         Args:
             enabled_analysts: 字典，指定哪些分析师参与分析
                 例如: {'technical': True, 'fundamental': True, ...}
@@ -426,52 +436,51 @@ class StockAnalysisAgents:
                 'sentiment': True,
                 'news': True
             }
-        
-        print("🚀 启动多智能体股票分析系统...")
-        print("=" * 50)
-        
+
+        self._update_progress("🚀 启动多智能体股票分析系统...")
+        self._update_progress("=" * 50)
+
         # 显示参与分析的分析师
         active_analysts = [name for name, enabled in enabled_analysts.items() if enabled]
-        print(f"📋 参与分析的分析师: {', '.join(active_analysts)}")
-        print("=" * 50)
-        
+        self._update_progress(f"📋 参与分析的分析师: {', '.join(active_analysts)}")
+        self._update_progress("=" * 50)
+
         # 并行运行各个分析师
         agents_results = {}
-        
+
         # 技术面分析
         if enabled_analysts.get('technical', True):
             agents_results["technical"] = self.technical_analyst_agent(stock_info, stock_data, indicators)
-        
+
         # 基本面分析
         if enabled_analysts.get('fundamental', True):
             agents_results["fundamental"] = self.fundamental_analyst_agent(stock_info, financial_data, quarterly_data)
-        
+
         # 资金面分析（传入资金流向数据）
         if enabled_analysts.get('fund_flow', True):
             agents_results["fund_flow"] = self.fund_flow_analyst_agent(stock_info, indicators, fund_flow_data)
-        
+
         # 风险管理分析（传入风险数据）
         if enabled_analysts.get('risk', True):
             agents_results["risk_management"] = self.risk_management_agent(stock_info, indicators, risk_data)
-        
+
         # 市场情绪分析（传入市场情绪数据）
         if enabled_analysts.get('sentiment', False):
             agents_results["market_sentiment"] = self.market_sentiment_agent(stock_info, sentiment_data)
-        
+
         # 新闻分析（传入新闻数据）
         if enabled_analysts.get('news', False):
             agents_results["news"] = self.news_analyst_agent(stock_info, news_data)
-        
-        print("✅ 所有已选择的分析师完成分析")
-        print("=" * 50)
-        
+
+        self._update_progress("✅ 所有已选择的分析师完成分析")
+        self._update_progress("=" * 50)
+
         return agents_results
     
     def conduct_team_discussion(self, agents_results: Dict[str, Any], stock_info: Dict) -> str:
         """进行团队讨论"""
-        print("🤝 分析团队正在进行综合讨论...")
-        time.sleep(2)
-        
+        self._update_progress("🤝 分析团队正在进行综合讨论...")
+
         # 收集参与分析的分析师名单和报告
         participants = []
         reports = []
@@ -530,16 +539,15 @@ class StockAnalysisAgents:
         ]
         
         discussion_result = self.deepseek_client.call_api(messages, max_tokens=6000)
-        
-        print("✅ 团队讨论完成")
+
+        self._update_progress("✅ 团队讨论完成")
         return discussion_result
-    
+
     def make_final_decision(self, discussion_result: str, stock_info: Dict, indicators: Dict) -> Dict[str, Any]:
         """制定最终投资决策"""
-        print("📋 正在制定最终投资决策...")
-        time.sleep(1)
-        
+        self._update_progress("📋 正在制定最终投资决策...")
+
         decision = self.deepseek_client.final_decision(discussion_result, stock_info, indicators)
-        
-        print("✅ 最终投资决策完成")
+
+        self._update_progress("✅ 最终投资决策完成")
         return decision

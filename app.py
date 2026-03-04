@@ -1232,7 +1232,12 @@ def run_stock_analysis(symbol, period):
         status_text.text("🤖 正在初始化AI分析系统...")
         # 使用选择的模型
         selected_model = st.session_state.get('selected_model', 'qwen3.5-plus')
-        agents = StockAnalysisAgents(model=selected_model)
+
+        # 创建进度回调函数，用于实时更新前端状态
+        def update_progress(message):
+            status_text.text(message)
+
+        agents = StockAnalysisAgents(model=selected_model, progress_callback=update_progress)
         progress_bar.progress(55)
 
         # 获取所有分析师选择状态
@@ -1251,7 +1256,7 @@ def run_stock_analysis(symbol, period):
         }
 
         # 7. 运行多智能体分析（传入所有数据和分析师选择）
-        status_text.text("🔍 AI分析师团队正在分析,请耐心等待几分钟...")
+        # 进度将通过回调函数实时更新到前端
         agents_results = agents.run_multi_agent_analysis(
             stock_info, stock_data, indicators, financial_data,
             fund_flow_data, sentiment_data, news_data, quarterly_data, risk_data,
@@ -1262,16 +1267,14 @@ def run_stock_analysis(symbol, period):
         # 显示各分析师报告
         display_agents_analysis(agents_results)
 
-        # 8. 团队讨论
-        status_text.text("🤝 分析团队正在讨论...")
+        # 8. 团队讨论（进度通过回调更新）
         discussion_result = agents.conduct_team_discussion(agents_results, stock_info)
         progress_bar.progress(88)
 
         # 显示团队讨论
         display_team_discussion(discussion_result)
 
-        # 9. 最终决策
-        status_text.text("📋 正在制定最终投资决策...")
+        # 9. 最终决策（进度通过回调更新）
         final_decision = agents.make_final_decision(discussion_result, stock_info, indicators)
         progress_bar.progress(100)
 
