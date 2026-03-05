@@ -2694,5 +2694,7 @@ def display_detailed_cards(results, period):
     except Exception as e:
         st.error(f"显示详细信息时出错: {str(e)}")
 
+
 if __name__ == "__main__":
     main()
+
